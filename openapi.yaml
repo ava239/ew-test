@@ -1,0 +1,289 @@
+openapi: 3.0.0
+info:
+  title: REST-сервис для агрегации данных об онлайн-подписках пользователей
+  version: 0.0.1
+paths:
+  /stats:
+    get:
+      tags:
+        - Stats
+      summary: Статистика по всем подпискам за период (суммарная стоимость)
+      operationId: statsSubscriptions
+      parameters:
+        - name: start_date
+          in: query
+          description: Дата начала интервала
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: end_date
+          in: query
+          description: Дата окончания интервала
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: user_id
+          in: query
+          description: Фильтр по id пользователя
+          schema:
+            $ref: "#/components/schemas/UUID"
+        - name: service_name
+          in: query
+          description: Фильтр по названию подписки
+          schema:
+            $ref: "#/components/schemas/ServiceName"
+      responses:
+        200:
+          description: Корректный ответ со статистикой
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_price:
+                    type: integer
+        'default':
+          description: Ошибки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /subscriptions:
+    get:
+      summary: Получение списка подписок
+      tags:
+        - Subscription
+      operationId: listSubscriptions
+      parameters:
+        - name: offset
+          in: query
+          description: Смещение от начала списка
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: Количество получаемых элементов
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+        - name: start_date
+          in: query
+          description: Дата начала интервала
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: end_date
+          in: query
+          description: Дата окончания интервала
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: user_id
+          in: query
+          description: Фильтр по id пользователя
+          schema:
+            $ref: "#/components/schemas/UUID"
+        - name: service_name
+          in: query
+          description: Фильтр по названию подписки
+          schema:
+            $ref: "#/components/schemas/ServiceName"
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscriptions"
+        'default':
+          description: Ошибки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Создание подписки
+      operationId: createSubscription
+      tags:
+        - Subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Subscription"
+      responses:
+        '200':
+          description: Ответ с идентификатором созданной подписки
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription_id:
+                    $ref: "#/components/schemas/UUID"
+        '422':
+          description: Ошибка создания
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        'default':
+          description: Ошибки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /subscriptions/{subscription_id}:
+    get:
+      summary: Получить подписку по идентификатору
+      operationId: readSubscription
+      tags:
+        - Subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Идентификатор подписки
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        '200':
+          description: Успешный ответ с подпиской
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        '404':
+          description: Подписки с указанным ID не существует
+        'default':
+          description: Ошибки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Удаление подписки по идентификатору
+      operationId: deleteSubscription
+      tags:
+        - Subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Идентификатор подписки
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        '204':
+          description: Подписка удалена успешно
+        '404':
+          description: Подписки с указанным ID не существует
+        'default':
+          description: Ошибки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Изменение подписки
+      operationId: updateSubscription
+      tags:
+        - Subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Идентификатор подписки
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionPatch"
+      responses:
+        '204':
+          description: Подписка изменена успешно
+        '404':
+          description: Подписки с указанным ID не существует
+        '422':
+          description: Ошибка изменения
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        'default':
+          description: Ошибки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+            
+components:
+  schemas:
+    Subscription:
+      type: object
+      required: 
+        - service_name
+        - price
+        - user_id
+        - start_date
+      properties:
+        subscription_id:
+          $ref: "#/components/schemas/UUID"
+        service_name:
+          $ref: "#/components/schemas/ServiceName"
+        price:
+          $ref: "#/components/schemas/Price"
+        user_id:
+          $ref: "#/components/schemas/UUID"
+        start_date:
+          $ref: "#/components/schemas/Date"
+        end_date:
+          $ref: "#/components/schemas/Date"
+    Subscriptions:
+      type: array
+      items:
+        $ref: "#/components/schemas/Subscription"
+    SubscriptionPatch:
+      type: object
+      properties:
+        subscription_id:
+          $ref: "#/components/schemas/UUID"
+        service_name:
+          $ref: "#/components/schemas/ServiceName"
+        price:
+          $ref: "#/components/schemas/Price"
+        user_id:
+          $ref: "#/components/schemas/UUID"
+        start_date:
+          $ref: "#/components/schemas/Date"
+        end_date:
+          $ref: "#/components/schemas/Date"
+    Date:
+      type: string
+      pattern: "^(0[1-9]|1[0-2])-\\d{4}$"
+      example: "07-2025"
+    Price:
+      type: integer
+      minimum: 1
+      example: 400
+    ServiceName:
+      type: string
+      example: Yandex Plus    
+    UUID:
+      type: string
+      format: uuid
+      example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+        message:
+          type: string

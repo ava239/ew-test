@@ -1,0 +1,24 @@
+services:
+  ew:
+    build:
+      dockerfile: .docker/Dockerfile
+      context: ./
+    depends_on:
+      - db
+    entrypoint: /entrypoint.sh
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - data:/var/lib/postgresql
+    env_file:
+      - .env
+
+volumes:
+  data:
