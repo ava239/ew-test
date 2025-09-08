@@ -18,6 +18,11 @@ func NewMockRepo(items []*Item) *SubscriptionRepositoryMock {
 
 func (repo *SubscriptionRepositoryMock) GetList(ctx context.Context, params ListParams) ([]*Item, error) {
 	items := make([]*Item, len(repo.Items))
+
+	if params.StartDate != nil && params.StartDate.After(time.Now()) {
+		return items, nil
+	}
+
 	copy(items, repo.Items)
 
 	if params.Offset != nil {
@@ -43,7 +48,7 @@ func (repo *SubscriptionRepositoryMock) GetList(ctx context.Context, params List
 	if params.EndDate == nil {
 		now := time.Now()
 		y, m, _ := now.Date()
-		end := time.Date(y, m+1, 1, 0, 0, 0, 0, now.Location())
+		end := time.Date(y, m, 1, 0, 0, 0, 0, now.Location())
 		params.EndDate = &end
 	}
 

@@ -26,6 +26,10 @@ func NewRepo(db *pgxpool.Pool) *SubscriptionRepository {
 func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListParams) ([]*Item, error) {
 	items := []*Item{}
 
+	if params.StartDate != nil && params.StartDate.After(time.Now()) {
+		return items, nil
+	}
+
 	qParts := make([]string, 0, 5)
 	args := make([]interface{}, 0, 7)
 
@@ -44,17 +48,17 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 	if params.EndDate == nil {
 		now := time.Now()
 		y, m, _ := now.Date()
-		end := time.Date(y, m+1, 1, 0, 0, 0, 0, now.Location())
+		end := time.Date(y, m, 1, 0, 0, 0, 0, now.Location())
 		params.EndDate = &end
 	}
 
 	if params.StartDate != nil {
 		args = append(args, params.StartDate)
 		args = append(args, params.EndDate)
-		qParts = append(qParts, fmt.Sprintf("\"start_date\" <= $%d and (\"end_date\" is null or \"end_date\" >= $%d)", len(args), len(args)-1))
+		qParts = append(qParts, fmt.Sprintf("\"start_date\" < $%d and (\"end_date\" is null or \"end_date\" >= $%d)", len(args), len(args)-1))
 	} else {
 		args = append(args, params.EndDate)
-		qParts = append(qParts, fmt.Sprintf("\"start_date\" <= $%d", len(args)))
+		qParts = append(qParts, fmt.Sprintf("\"start_date\" < $%d", len(args)))
 	}
 
 	lo := make([]string, 0, 2)

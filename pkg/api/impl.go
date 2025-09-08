@@ -292,8 +292,6 @@ func (s Server) StatsSubscriptions(ctx context.Context, request StatsSubscriptio
 			start = item.StartDate
 		}
 
-		startYear, startMonth, _ = start.Date()
-
 		if item.EndDate != nil {
 			end = *item.EndDate
 		} else {
@@ -305,6 +303,11 @@ func (s Server) StatsSubscriptions(ctx context.Context, request StatsSubscriptio
 			end = time.Unix(int64(minUnix), 0)
 		}
 
+		if start.After(end) {
+			start = end.AddDate(0, 1, 0)
+		}
+
+		startYear, startMonth, _ = start.Date()
 		endYear, endMonth, _ = end.Date()
 
 		diff := int(endMonth-startMonth+1) + 12*(endYear-startYear)
