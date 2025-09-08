@@ -23,19 +23,23 @@ func (repo *SubscriptionRepositoryMock) GetList(ctx context.Context, params List
 	if params.Offset != nil {
 		items = items[*params.Offset:]
 	}
+
 	if params.Limit != nil {
 		items = items[:*params.Limit]
 	}
+
 	if params.UserId != nil {
 		items = slices.DeleteFunc(items, func(item *Item) bool {
 			return item.UserId != *params.UserId
 		})
 	}
+
 	if params.ServiceName != nil {
 		items = slices.DeleteFunc(items, func(item *Item) bool {
 			return item.ServiceName != *params.ServiceName
 		})
 	}
+
 	if params.EndDate == nil {
 		now := time.Now()
 		y, m, _ := now.Date()
