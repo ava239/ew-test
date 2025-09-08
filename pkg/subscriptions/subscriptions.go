@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -40,15 +41,19 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 		qParts = append(qParts, fmt.Sprintf("\"user_id\" = $%d", len(args)))
 	}
 
-	if params.StartDate != nil {
-		args = append(args, params.StartDate)
-		qParts = append(qParts, fmt.Sprintf("\"start_date\" <= $%d", len(args)))
-		qParts = append(qParts, fmt.Sprintf("(\"end_date\" is null or \"end_date\" >= $%d)", len(args)))
+	if params.EndDate == nil {
+		now := time.Now()
+		y, m, _ := now.Date()
+		end := time.Date(y, m+1, 1, 0, 0, 0, 0, now.Location())
+		params.EndDate = &end
 	}
 
-	if params.EndDate != nil {
+	if params.StartDate != nil {
+		args = append(args, params.StartDate)
 		args = append(args, params.EndDate)
-		qParts = append(qParts, fmt.Sprintf("(\"end_date\" is null or \"end_date\" >= $%d)", len(args)))
+		qParts = append(qParts, fmt.Sprintf("\"start_date\" <= $%d and (\"end_date\" is null or \"end_date\" >= $%d)", len(args), len(args)-1))
+	} else {
+		args = append(args, params.EndDate)
 		qParts = append(qParts, fmt.Sprintf("\"start_date\" <= $%d", len(args)))
 	}
 

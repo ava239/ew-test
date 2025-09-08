@@ -3,6 +3,7 @@ package subscriptions
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -35,6 +36,25 @@ func (repo *SubscriptionRepositoryMock) GetList(ctx context.Context, params List
 			return item.ServiceName != *params.ServiceName
 		})
 	}
+	if params.EndDate == nil {
+		now := time.Now()
+		y, m, _ := now.Date()
+		end := time.Date(y, m+1, 1, 0, 0, 0, 0, now.Location())
+		params.EndDate = &end
+	}
+
+	if params.StartDate != nil {
+		items = slices.DeleteFunc(items, func(item *Item) bool {
+			startBefore := item.StartDate.Before(*params.EndDate)
+			endAfter := item.EndDate == nil || item.EndDate.After(*params.StartDate)
+			return !startBefore || !endAfter
+		})
+	} else {
+		items = slices.DeleteFunc(items, func(item *Item) bool {
+			return !item.StartDate.Before(*params.EndDate)
+		})
+	}
+
 	return items, nil
 }
 
