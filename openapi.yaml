@@ -224,25 +224,12 @@ paths:
 components:
   schemas:
     Subscription:
-      type: object
-      required: 
-        - service_name
-        - price
-        - user_id
-        - start_date
-      properties:
-        subscription_id:
-          $ref: "#/components/schemas/UUID"
-        service_name:
-          $ref: "#/components/schemas/ServiceName"
-        price:
-          $ref: "#/components/schemas/Price"
-        user_id:
-          $ref: "#/components/schemas/UUID"
-        start_date:
-          $ref: "#/components/schemas/Date"
-        end_date:
-          $ref: "#/components/schemas/Date"
+      allOf:
+        - $ref: "#/components/schemas/SubscriptionCreate"
+        - type: object
+          properties:
+            subscription_id:
+              $ref: "#/components/schemas/UUID"
     Subscriptions:
       type: array
       items:
@@ -250,8 +237,6 @@ components:
     SubscriptionPatch:
       type: object
       properties:
-        subscription_id:
-          $ref: "#/components/schemas/UUID"
         service_name:
           $ref: "#/components/schemas/ServiceName"
         price:
@@ -262,6 +247,15 @@ components:
           $ref: "#/components/schemas/Date"
         end_date:
           $ref: "#/components/schemas/Date"
+    SubscriptionCreate:
+      allOf:
+        - $ref: "#/components/schemas/SubscriptionPatch"
+        - type: object
+          required:
+            - service_name
+            - price
+            - user_id
+            - start_date
     Date:
       type: string
       pattern: "^(0[1-9]|1[0-2])-\\d{4}$"

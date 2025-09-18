@@ -38,14 +38,22 @@ type Subscription struct {
 	UserId         UUID        `json:"user_id"`
 }
 
+// SubscriptionCreate defines model for SubscriptionCreate.
+type SubscriptionCreate struct {
+	EndDate     *Date       `json:"end_date,omitempty"`
+	Price       Price       `json:"price"`
+	ServiceName ServiceName `json:"service_name"`
+	StartDate   Date        `json:"start_date"`
+	UserId      UUID        `json:"user_id"`
+}
+
 // SubscriptionPatch defines model for SubscriptionPatch.
 type SubscriptionPatch struct {
-	EndDate        *Date        `json:"end_date,omitempty"`
-	Price          *Price       `json:"price,omitempty"`
-	ServiceName    *ServiceName `json:"service_name,omitempty"`
-	StartDate      *Date        `json:"start_date,omitempty"`
-	SubscriptionId *UUID        `json:"subscription_id,omitempty"`
-	UserId         *UUID        `json:"user_id,omitempty"`
+	EndDate     *Date        `json:"end_date,omitempty"`
+	Price       *Price       `json:"price,omitempty"`
+	ServiceName *ServiceName `json:"service_name,omitempty"`
+	StartDate   *Date        `json:"start_date,omitempty"`
+	UserId      *UUID        `json:"user_id,omitempty"`
 }
 
 // Subscriptions defines model for Subscriptions.
