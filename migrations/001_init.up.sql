@@ -6,6 +6,9 @@ CREATE TABLE subscriptions (
     start_date DATE NOT NULL,
     end_date DATE
 );
+CREATE INDEX service_name ON subscriptions (service_name);
+CREATE INDEX user_id ON subscriptions (user_id);
+CREATE INDEX start_date ON subscriptions (start_date);
 
 INSERT INTO subscriptions VALUES
     (DEFAULT, 'Yandex Plus', 400,'60601fee-2bf1-4721-ae6f-7636e79a0cba','2025-07-01', NULL),
