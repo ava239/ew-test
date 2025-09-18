@@ -5,6 +5,8 @@ import (
 	"ew/pkg/api"
 	"ew/pkg/subscriptions"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -36,7 +38,27 @@ func main() {
 		[]api.StrictMiddlewareFunc{},
 	))
 
-	logrus.Info("Listening on :" + os.Getenv("HTTP_BIND"))
+	go func() {
+		logrus.Info("Listening on :" + os.Getenv("HTTP_BIND"))
 
-	logrus.Fatal(webApp.Listen(":" + os.Getenv("HTTP_BIND")))
+		if err := webApp.Listen(":" + os.Getenv("HTTP_BIND")); err != nil {
+			logrus.Panic(err)
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	<-c
+	logrus.Info("Gracefully shutting down...")
+
+	if err := webApp.ShutdownWithTimeout(5 * time.Second); err != nil {
+		logrus.Fatalf("Fiber server shutdown error: %v", err)
+	}
+
+	logrus.Info("Running cleanup tasks...")
+
+	db.Close()
+
+	logrus.Info("Fiber was successfully shut down.")
 }

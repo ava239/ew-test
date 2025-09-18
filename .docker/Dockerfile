@@ -9,3 +9,6 @@ RUN chmod +x /entrypoint.sh
 WORKDIR /app
 
 RUN go mod tidy
+RUN go build ./cmd/ew
+
+RUN chmod +x ./ew

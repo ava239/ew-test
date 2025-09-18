@@ -4,7 +4,17 @@ until PGHOST=${HOST_DB} PGDATABASE=${POSTGRES_DB} PGPORT=${PORT_DB} PGUSER=${POS
 
 migrate -source file://${PWD}/migrations/ -database postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${HOST_DB}:${PORT_DB}/${POSTGRES_DB}?sslmode=disable up
 
-go mod tidy
-go run -race ./cmd/ew/main.go
+cleanup_on_sigterm() {
+    if [ -n "$PROGRAM_PID" ]; then
+        kill "$PROGRAM_PID"
+        wait "$PROGRAM_PID"
+    fi
+    exit 0
+}
 
-eval "$@"
+trap cleanup_on_sigterm SIGTERM
+
+./ew &
+PROGRAM_PID=$!
+
+wait "$PROGRAM_PID"
