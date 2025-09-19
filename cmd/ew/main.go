@@ -6,6 +6,7 @@ import (
 	"ew/pkg/subscriptions"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -37,6 +38,14 @@ func main() {
 		server,
 		[]api.StrictMiddlewareFunc{},
 	))
+
+	loggingLevel, err := strconv.Atoi(os.Getenv("LOGGING_LEVEL"))
+	if err != nil {
+		logrus.WithError(err).Error("error parsing LOGGING_LEVEL, set to default = 2 (ErrorLevel)")
+		logrus.SetLevel(logrus.ErrorLevel)
+	} else {
+		logrus.SetLevel(logrus.Level(loggingLevel))
+	}
 
 	go func() {
 		logrus.Info("Listening on :" + os.Getenv("HTTP_BIND"))

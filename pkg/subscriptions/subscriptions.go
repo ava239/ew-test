@@ -72,7 +72,7 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 	}
 
 	q := fmt.Sprintf("SELECT id, service_name, price, user_id, start_date, end_date FROM subscriptions WHERE %s %s", strings.Join(qParts, " AND "), strings.Join(lo, " "))
-	logrus.WithFields(logrus.Fields{"query": q}).Info("GetList query")
+	logrus.WithFields(logrus.Fields{"query": q}).Debug("GetList query")
 
 	rows, err := repo.DB.Query(ctx, q, args...)
 	if err != nil {

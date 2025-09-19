@@ -276,7 +276,7 @@ func (s Server) StatsSubscriptions(ctx context.Context, request StatsSubscriptio
 		en, _ := time.Parse("01-2006", *request.Params.EndDate)
 		periodEnd = &en
 	}
-	logrus.WithFields(logrus.Fields{"end": periodEnd, "start": periodStart}).Info("stats subscriptions")
+	logrus.WithFields(logrus.Fields{"end": periodEnd, "start": periodStart}).Debug("stats subscriptions")
 
 	for _, item := range items {
 		var (
@@ -312,7 +312,7 @@ func (s Server) StatsSubscriptions(ctx context.Context, request StatsSubscriptio
 
 		diff := int(endMonth-startMonth+1) + 12*(endYear-startYear)
 
-		logrus.WithFields(logrus.Fields{"diff": diff, "year1": startYear, "year2": endYear, "month1": startMonth, "month2": endMonth}).Info("stats subscriptions")
+		logrus.WithFields(logrus.Fields{"diff": diff, "year1": startYear, "year2": endYear, "month1": startMonth, "month2": endMonth}).Debug("stats subscriptions")
 
 		total += int(item.Price) * diff
 	}
