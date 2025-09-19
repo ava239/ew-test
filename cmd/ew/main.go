@@ -19,8 +19,9 @@ import (
 
 func main() {
 	db := database.InitDB()
+	queryBuilder := database.InitQueryBuilder()
 
-	repo := subscriptions.NewRepo(db)
+	repo := subscriptions.NewRepo(db, queryBuilder)
 	validate := validator.New()
 
 	server := api.NewServer(repo, validate)

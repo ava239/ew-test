@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"strings"
 	"time"
 
+	"github.com/doug-martin/goqu/v9"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
@@ -17,10 +16,11 @@ var NotFound = errors.New("not found")
 
 type SubscriptionRepository struct {
 	DB *pgxpool.Pool
+	QB goqu.DialectWrapper
 }
 
-func NewRepo(db *pgxpool.Pool) *SubscriptionRepository {
-	return &SubscriptionRepository{DB: db}
+func NewRepo(db *pgxpool.Pool, qb goqu.DialectWrapper) *SubscriptionRepository {
+	return &SubscriptionRepository{DB: db, QB: qb}
 }
 
 func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListParams) ([]*Item, error) {
@@ -30,19 +30,15 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 		return items, nil
 	}
 
-	qParts := make([]string, 0, 5)
-	args := make([]interface{}, 0, 7)
-
-	qParts = append(qParts, "1=1")
+	query := repo.QB.From("subscriptions").
+		Select("id", "service_name", "price", "user_id", "start_date", "end_date")
 
 	if params.ServiceName != nil {
-		args = append(args, params.ServiceName)
-		qParts = append(qParts, fmt.Sprintf("\"service_name\" = $%d", len(args)))
+		query = query.Where(goqu.Ex{"service_name": params.ServiceName})
 	}
 
 	if params.UserId != nil {
-		args = append(args, params.UserId.String())
-		qParts = append(qParts, fmt.Sprintf("\"user_id\" = $%d", len(args)))
+		query = query.Where(goqu.Ex{"user_id": params.UserId})
 	}
 
 	if params.EndDate == nil {
@@ -53,26 +49,26 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 	}
 
 	if params.StartDate != nil {
-		args = append(args, params.StartDate)
-		args = append(args, params.EndDate)
-		qParts = append(qParts, fmt.Sprintf("\"start_date\" < $%d and (\"end_date\" is null or \"end_date\" >= $%d)", len(args), len(args)-1))
+		query = query.Where(goqu.And(
+			goqu.C("start_date").Lt(params.EndDate),
+			goqu.Or(
+				goqu.C("end_date").IsNull(),
+				goqu.C("end_date").Gte(params.StartDate),
+			),
+		))
 	} else {
-		args = append(args, params.EndDate)
-		qParts = append(qParts, fmt.Sprintf("\"start_date\" < $%d", len(args)))
+		query = query.Where(goqu.C("start_date").Lt(params.EndDate))
 	}
 
-	lo := make([]string, 0, 2)
 	if params.Limit != nil {
-		args = append(args, params.Limit)
-		lo = append(lo, fmt.Sprintf("LIMIT $%d", len(args)))
+		query = query.Limit(uint(*params.Limit))
 	}
 	if params.Offset != nil {
-		args = append(args, params.Offset)
-		lo = append(lo, fmt.Sprintf("OFFSET $%d", len(args)))
+		query = query.Offset(uint(*params.Offset))
 	}
 
-	q := fmt.Sprintf("SELECT id, service_name, price, user_id, start_date, end_date FROM subscriptions WHERE %s %s", strings.Join(qParts, " AND "), strings.Join(lo, " "))
-	logrus.WithFields(logrus.Fields{"query": q}).Debug("GetList query")
+	q, args, _ := query.Prepared(true).ToSQL()
+	logrus.WithFields(logrus.Fields{"query": q, "args": args}).Debug("GetList query")
 
 	rows, err := repo.DB.Query(ctx, q, args...)
 	if err != nil {
@@ -99,8 +95,16 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 
 func (repo *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*Item, error) {
 	subscription := &Item{}
+
+	query := repo.QB.From("subscriptions").
+		Select("id", "service_name", "price", "user_id", "start_date", "end_date").
+		Where(goqu.Ex{"id": id})
+
+	q, args, _ := query.Prepared(true).ToSQL()
+	logrus.WithFields(logrus.Fields{"query": q, "args": args}).Debug("GetByID query")
+
 	err := repo.DB.
-		QueryRow(ctx, "SELECT id, service_name, price, user_id, start_date, end_date FROM subscriptions WHERE id = $1", id).
+		QueryRow(ctx, q, args...).
 		Scan(
 			&subscription.ID,
 			&subscription.ServiceName,
@@ -120,14 +124,15 @@ func (repo *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (
 
 func (repo *SubscriptionRepository) Add(ctx context.Context, elem *Item) (uuid.UUID, error) {
 	var newID uuid.UUID
-	err := repo.DB.QueryRow(
-		ctx, "INSERT INTO subscriptions (service_name, price, user_id, start_date, end_date) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-		elem.ServiceName,
-		elem.Price,
-		elem.UserId,
-		elem.StartDate,
-		elem.EndDate,
-	).Scan(&newID)
+
+	query := repo.QB.Insert("subscriptions").
+		Rows(elem).
+		Returning("id")
+
+	q, args, _ := query.Prepared(true).ToSQL()
+	logrus.WithFields(logrus.Fields{"query": q, "args": args}).Debug("Add query")
+
+	err := repo.DB.QueryRow(ctx, q, args...).Scan(&newID)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
@@ -135,36 +140,12 @@ func (repo *SubscriptionRepository) Add(ctx context.Context, elem *Item) (uuid.U
 }
 
 func (repo *SubscriptionRepository) Update(ctx context.Context, elem *PatchItem) (int64, error) {
-	qParts := make([]string, 0, 5)
-	args := make([]interface{}, 0, 6)
+	query := repo.QB.Update("subscriptions").
+		Where(goqu.Ex{"id": elem.ID}).
+		Set(elem)
 
-	if elem.ServiceName != nil {
-		args = append(args, elem.ServiceName)
-		qParts = append(qParts, fmt.Sprintf("\"service_name\" = $%d", len(args)))
-	}
-
-	if elem.Price != nil {
-		args = append(args, elem.Price)
-		qParts = append(qParts, fmt.Sprintf("\"price\" = $%d", len(args)))
-	}
-
-	if elem.UserId != nil {
-		args = append(args, elem.UserId)
-		qParts = append(qParts, fmt.Sprintf("\"user_id\" = $%d", len(args)))
-	}
-
-	if elem.StartDate != nil {
-		args = append(args, elem.StartDate)
-		qParts = append(qParts, fmt.Sprintf("\"start_date\" = $%d", len(args)))
-	}
-
-	if elem.EndDate != nil {
-		args = append(args, elem.EndDate)
-		qParts = append(qParts, fmt.Sprintf("\"end_date\" = $%d", len(args)))
-	}
-
-	args = append(args, elem.ID)
-	q := fmt.Sprintf("UPDATE subscriptions SET %s WHERE id = $%d", strings.Join(qParts, ","), len(args))
+	q, args, _ := query.Prepared(true).ToSQL()
+	logrus.WithFields(logrus.Fields{"query": q, "args": args}).Debug("Update query")
 
 	result, err := repo.DB.Exec(ctx, q, args...)
 	if err != nil {
@@ -174,7 +155,13 @@ func (repo *SubscriptionRepository) Update(ctx context.Context, elem *PatchItem)
 }
 
 func (repo *SubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := repo.DB.Exec(ctx, "DELETE FROM subscriptions WHERE id = $1", id)
+	query := repo.QB.Delete("subscriptions").
+		Where(goqu.Ex{"id": id})
+
+	q, args, _ := query.Prepared(true).ToSQL()
+	logrus.WithFields(logrus.Fields{"query": q, "args": args}).Debug("Delete query")
+
+	result, err := repo.DB.Exec(ctx, q, args...)
 
 	if err != nil {
 		return 0, err
