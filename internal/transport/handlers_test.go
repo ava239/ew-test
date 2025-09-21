@@ -21,7 +21,7 @@ var (
 	id1  = uuid.New()
 	id2  = uuid.New()
 	id3  = uuid.New()
-	repo *inmemory.InMemorySubscriptionRepository
+	repo *inmemory.SubscriptionRepository
 )
 
 func prepareServ() *fiber.App {

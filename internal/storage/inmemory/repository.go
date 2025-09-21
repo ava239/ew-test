@@ -9,15 +9,15 @@ import (
 	"github.com/google/uuid"
 )
 
-type InMemorySubscriptionRepository struct {
+type SubscriptionRepository struct {
 	Items []*subscriptions.Subscription
 }
 
-func NewRepo(items []*subscriptions.Subscription) *InMemorySubscriptionRepository {
-	return &InMemorySubscriptionRepository{items}
+func NewRepo(items []*subscriptions.Subscription) *SubscriptionRepository {
+	return &SubscriptionRepository{items}
 }
 
-func (repo *InMemorySubscriptionRepository) GetList(_ context.Context, params subscriptions.SubscriptionListParams) ([]*subscriptions.Subscription, error) {
+func (repo *SubscriptionRepository) GetList(_ context.Context, params subscriptions.SubscriptionListParams) ([]*subscriptions.Subscription, error) {
 	items := make([]*subscriptions.Subscription, len(repo.Items))
 
 	if params.StartDate != nil && params.StartDate.After(time.Now()) {
@@ -68,7 +68,7 @@ func (repo *InMemorySubscriptionRepository) GetList(_ context.Context, params su
 	return items, nil
 }
 
-func (repo *InMemorySubscriptionRepository) GetByID(_ context.Context, id uuid.UUID) (*subscriptions.Subscription, error) {
+func (repo *SubscriptionRepository) GetByID(_ context.Context, id uuid.UUID) (*subscriptions.Subscription, error) {
 	for _, item := range repo.Items {
 		if item.ID == id {
 			return item, nil
@@ -77,13 +77,13 @@ func (repo *InMemorySubscriptionRepository) GetByID(_ context.Context, id uuid.U
 	return nil, subscriptions.NotFound
 }
 
-func (repo *InMemorySubscriptionRepository) Add(_ context.Context, elem *subscriptions.Subscription) (uuid.UUID, error) {
+func (repo *SubscriptionRepository) Add(_ context.Context, elem *subscriptions.Subscription) (uuid.UUID, error) {
 	elem.ID = uuid.New()
 	repo.Items = append(repo.Items, elem)
 	return elem.ID, nil
 }
 
-func (repo *InMemorySubscriptionRepository) Update(_ context.Context, elem *subscriptions.SubscriptionPatch) (int64, error) {
+func (repo *SubscriptionRepository) Update(_ context.Context, elem *subscriptions.SubscriptionPatch) (int64, error) {
 	for _, item := range repo.Items {
 		if item.ID == elem.ID {
 			if elem.ServiceName != nil {
@@ -108,7 +108,7 @@ func (repo *InMemorySubscriptionRepository) Update(_ context.Context, elem *subs
 	return 0, nil
 }
 
-func (repo *InMemorySubscriptionRepository) Delete(_ context.Context, id uuid.UUID) (int64, error) {
+func (repo *SubscriptionRepository) Delete(_ context.Context, id uuid.UUID) (int64, error) {
 	for i, item := range repo.Items {
 		if item.ID == id {
 			repo.Items = slices.Delete(repo.Items, i, i+1)

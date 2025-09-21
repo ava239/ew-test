@@ -18,7 +18,7 @@ var (
 	id4 = uuid.New()
 )
 
-func prepareRepo() *InMemorySubscriptionRepository {
+func prepareRepo() *SubscriptionRepository {
 	now := time.Now()
 	return NewRepo([]*subscriptions.Subscription{
 		{ID: id1, ServiceName: "some item", Price: 125, StartDate: time.Now().AddDate(-1, -5, 0), UserId: uuid.New()},

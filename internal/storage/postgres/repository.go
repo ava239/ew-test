@@ -13,16 +13,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type PostgresSubscriptionRepository struct {
+type SubscriptionRepository struct {
 	DB *pgxpool.Pool
 	QB goqu.DialectWrapper
 }
 
-func NewRepo(db *pgxpool.Pool, qb goqu.DialectWrapper) *PostgresSubscriptionRepository {
-	return &PostgresSubscriptionRepository{DB: db, QB: qb}
+func NewRepo(db *pgxpool.Pool, qb goqu.DialectWrapper) *SubscriptionRepository {
+	return &SubscriptionRepository{DB: db, QB: qb}
 }
 
-func (repo *PostgresSubscriptionRepository) GetList(ctx context.Context, params subscriptions.SubscriptionListParams) ([]*subscriptions.Subscription, error) {
+func (repo *SubscriptionRepository) GetList(ctx context.Context, params subscriptions.SubscriptionListParams) ([]*subscriptions.Subscription, error) {
 	items := []*subscriptions.Subscription{}
 
 	if params.StartDate != nil && params.StartDate.After(time.Now()) {
@@ -92,7 +92,7 @@ func (repo *PostgresSubscriptionRepository) GetList(ctx context.Context, params 
 	return items, nil
 }
 
-func (repo *PostgresSubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*subscriptions.Subscription, error) {
+func (repo *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*subscriptions.Subscription, error) {
 	subscription := &subscriptions.Subscription{}
 
 	query := repo.QB.From("subscriptions").
@@ -121,7 +121,7 @@ func (repo *PostgresSubscriptionRepository) GetByID(ctx context.Context, id uuid
 	return subscription, nil
 }
 
-func (repo *PostgresSubscriptionRepository) Add(ctx context.Context, elem *subscriptions.Subscription) (uuid.UUID, error) {
+func (repo *SubscriptionRepository) Add(ctx context.Context, elem *subscriptions.Subscription) (uuid.UUID, error) {
 	var newID uuid.UUID
 
 	query := repo.QB.Insert("subscriptions").
@@ -138,7 +138,7 @@ func (repo *PostgresSubscriptionRepository) Add(ctx context.Context, elem *subsc
 	return newID, nil
 }
 
-func (repo *PostgresSubscriptionRepository) Update(ctx context.Context, elem *subscriptions.SubscriptionPatch) (int64, error) {
+func (repo *SubscriptionRepository) Update(ctx context.Context, elem *subscriptions.SubscriptionPatch) (int64, error) {
 	query := repo.QB.Update("subscriptions").
 		Where(goqu.Ex{"id": elem.ID}).
 		Set(elem)
@@ -153,7 +153,7 @@ func (repo *PostgresSubscriptionRepository) Update(ctx context.Context, elem *su
 	return result.RowsAffected(), nil
 }
 
-func (repo *PostgresSubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) (int64, error) {
+func (repo *SubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) (int64, error) {
 	query := repo.QB.Delete("subscriptions").
 		Where(goqu.Ex{"id": id})
 
