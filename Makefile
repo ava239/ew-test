@@ -10,7 +10,7 @@ compose-down:
 	docker compose -f=./deployments/docker-compose.yml down -v --remove-orphans
 
 test:
-	go test -v ./internal/transport
+	go test -v ./internal/transport ./internal/storage/inmemory
 
 install-gen:
 	go get -tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest

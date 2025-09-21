@@ -21,7 +21,7 @@ func (repo *InMemorySubscriptionRepository) GetList(_ context.Context, params su
 	items := make([]*subscriptions.Subscription, len(repo.Items))
 
 	if params.StartDate != nil && params.StartDate.After(time.Now()) {
-		return items, nil
+		return []*subscriptions.Subscription{}, nil
 	}
 
 	copy(items, repo.Items)

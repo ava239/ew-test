@@ -14,6 +14,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -39,6 +40,8 @@ func prepareServ() *fiber.App {
 		server,
 		[]StrictMiddlewareFunc{},
 	))
+	logrus.SetLevel(logrus.ErrorLevel)
+
 	return webApp
 }
 
@@ -131,11 +134,13 @@ func TestImplUpdate(t *testing.T) {
 
 	price := 105
 	startTime := "11-2000"
+	endTime := "11-2011"
 	userId := uuid.New()
 	item := SubscriptionPatch{
 		Price:     &price,
 		StartDate: &startTime,
 		UserId:    &userId,
+		EndDate:   &endTime,
 	}
 
 	jsonStr, _ := json.Marshal(item)
