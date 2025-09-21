@@ -1,9 +1,9 @@
-package api
+package transport
 
 import (
 	"context"
 	"errors"
-	"ew/pkg/subscriptions"
+	subscriptions2 "ew/internal/models/subscriptions"
 	"math"
 	"time"
 
@@ -14,7 +14,7 @@ import (
 var InternalError = errors.New("internal server error")
 
 type Server struct {
-	Repo      subscriptions.ItemRepo
+	Repo      subscriptions2.SubscriptionRepo
 	Validator *validator.Validate
 }
 
@@ -29,8 +29,11 @@ func validateDateFormat(fl validator.FieldLevel) bool {
 	return true
 }
 
-func NewServer(repo subscriptions.ItemRepo, validate *validator.Validate) Server {
-	validate.RegisterValidation("dateFormat", validateDateFormat)
+func NewServer(repo subscriptions2.SubscriptionRepo, validate *validator.Validate) Server {
+	err := validate.RegisterValidation("dateFormat", validateDateFormat)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to register validator")
+	}
 
 	listRules := map[string]string{
 		"Offset": "omitempty,min=0",
@@ -73,7 +76,7 @@ func (s Server) UpdateSubscription(ctx context.Context, request UpdateSubscripti
 		return UpdateSubscription422JSONResponse{Code: 422, Message: err.Error()}, nil
 	}
 
-	item := &subscriptions.PatchItem{
+	item := &subscriptions2.SubscriptionPatch{
 		ID:          request.SubscriptionId,
 		ServiceName: request.Body.ServiceName,
 		UserId:      request.Body.UserId,
@@ -115,7 +118,7 @@ func (s Server) UpdateSubscription(ctx context.Context, request UpdateSubscripti
 	return UpdateSubscription204Response{}, nil
 }
 
-func convertRepoToResponse(item *subscriptions.Item) Subscription {
+func convertRepoToResponse(item *subscriptions2.Subscription) Subscription {
 	var end *string
 
 	if item.EndDate != nil {
@@ -140,7 +143,7 @@ func (s Server) ListSubscriptions(ctx context.Context, request ListSubscriptions
 		return ListSubscriptionsdefaultJSONResponse{Body: Error{Code: 422, Message: err.Error()}, StatusCode: 422}, nil
 	}
 
-	params := subscriptions.ListParams{
+	params := subscriptions2.SubscriptionListParams{
 		Offset:      request.Params.Offset,
 		Limit:       request.Params.Limit,
 		UserId:      request.Params.UserId,
@@ -185,7 +188,7 @@ func (s Server) ListSubscriptions(ctx context.Context, request ListSubscriptions
 
 func (s Server) ReadSubscription(ctx context.Context, request ReadSubscriptionRequestObject) (ReadSubscriptionResponseObject, error) {
 	item, err := s.Repo.GetByID(ctx, request.SubscriptionId)
-	if errors.Is(err, subscriptions.NotFound) {
+	if errors.Is(err, subscriptions2.NotFound) {
 		return ReadSubscription404Response{}, nil
 	}
 	if err != nil {
@@ -204,7 +207,7 @@ func (s Server) CreateSubscription(ctx context.Context, request CreateSubscripti
 		return CreateSubscription422JSONResponse{Code: 422, Message: err.Error()}, nil
 	}
 
-	item := &subscriptions.Item{
+	item := &subscriptions2.Subscription{
 		ServiceName: request.Body.ServiceName,
 		UserId:      request.Body.UserId,
 		Price:       uint(request.Body.Price),
@@ -258,7 +261,7 @@ func (s Server) StatsSubscriptions(ctx context.Context, request StatsSubscriptio
 		return StatsSubscriptionsdefaultJSONResponse{Body: Error{Code: 422, Message: err.Error()}, StatusCode: 422}, nil
 	}
 
-	items, err := s.Repo.GetList(ctx, subscriptions.ListParams{UserId: request.Params.UserId, ServiceName: request.Params.ServiceName})
+	items, err := s.Repo.GetList(ctx, subscriptions2.SubscriptionListParams{UserId: request.Params.UserId, ServiceName: request.Params.ServiceName})
 	if err != nil {
 		logrus.WithError(err).Error("StatsSubscriptions failed")
 		return nil, InternalError

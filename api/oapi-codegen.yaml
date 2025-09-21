@@ -1,5 +1,5 @@
-package: api
-output: pkg/api/api.gen.go
+package: transport
+output: internal/transport/server.gen.go
 
 generate:
   strict-server: true

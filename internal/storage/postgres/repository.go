@@ -1,9 +1,10 @@
-package subscriptions
+package postgres
 
 import (
 	"context"
 	"database/sql"
 	"errors"
+	"ew/internal/models/subscriptions"
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
@@ -12,19 +13,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var NotFound = errors.New("not found")
-
-type SubscriptionRepository struct {
+type PostgresSubscriptionRepository struct {
 	DB *pgxpool.Pool
 	QB goqu.DialectWrapper
 }
 
-func NewRepo(db *pgxpool.Pool, qb goqu.DialectWrapper) *SubscriptionRepository {
-	return &SubscriptionRepository{DB: db, QB: qb}
+func NewRepo(db *pgxpool.Pool, qb goqu.DialectWrapper) *PostgresSubscriptionRepository {
+	return &PostgresSubscriptionRepository{DB: db, QB: qb}
 }
 
-func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListParams) ([]*Item, error) {
-	items := []*Item{}
+func (repo *PostgresSubscriptionRepository) GetList(ctx context.Context, params subscriptions.SubscriptionListParams) ([]*subscriptions.Subscription, error) {
+	items := []*subscriptions.Subscription{}
 
 	if params.StartDate != nil && params.StartDate.After(time.Now()) {
 		return items, nil
@@ -76,7 +75,7 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 	}
 	defer rows.Close()
 	for rows.Next() {
-		subscription := &Item{}
+		subscription := &subscriptions.Subscription{}
 		err = rows.Scan(
 			&subscription.ID,
 			&subscription.ServiceName,
@@ -93,8 +92,8 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params ListPara
 	return items, nil
 }
 
-func (repo *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*Item, error) {
-	subscription := &Item{}
+func (repo *PostgresSubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*subscriptions.Subscription, error) {
+	subscription := &subscriptions.Subscription{}
 
 	query := repo.QB.From("subscriptions").
 		Select("id", "service_name", "price", "user_id", "start_date", "end_date").
@@ -114,7 +113,7 @@ func (repo *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (
 			&subscription.EndDate,
 		)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, NotFound
+		return nil, subscriptions.NotFound
 	}
 	if err != nil {
 		return nil, err
@@ -122,7 +121,7 @@ func (repo *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (
 	return subscription, nil
 }
 
-func (repo *SubscriptionRepository) Add(ctx context.Context, elem *Item) (uuid.UUID, error) {
+func (repo *PostgresSubscriptionRepository) Add(ctx context.Context, elem *subscriptions.Subscription) (uuid.UUID, error) {
 	var newID uuid.UUID
 
 	query := repo.QB.Insert("subscriptions").
@@ -139,7 +138,7 @@ func (repo *SubscriptionRepository) Add(ctx context.Context, elem *Item) (uuid.U
 	return newID, nil
 }
 
-func (repo *SubscriptionRepository) Update(ctx context.Context, elem *PatchItem) (int64, error) {
+func (repo *PostgresSubscriptionRepository) Update(ctx context.Context, elem *subscriptions.SubscriptionPatch) (int64, error) {
 	query := repo.QB.Update("subscriptions").
 		Where(goqu.Ex{"id": elem.ID}).
 		Set(elem)
@@ -154,7 +153,7 @@ func (repo *SubscriptionRepository) Update(ctx context.Context, elem *PatchItem)
 	return result.RowsAffected(), nil
 }
 
-func (repo *SubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) (int64, error) {
+func (repo *PostgresSubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) (int64, error) {
 	query := repo.QB.Delete("subscriptions").
 		Where(goqu.Ex{"id": id})
 

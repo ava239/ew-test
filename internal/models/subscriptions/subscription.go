@@ -1,13 +1,15 @@
 package subscriptions
 
 import (
-	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-type Item struct {
+var NotFound = errors.New("not found")
+
+type Subscription struct {
 	ID          uuid.UUID  `db:"id" goqu:"skipinsert"`
 	ServiceName string     `db:"service_name"`
 	Price       uint       `db:"price"`
@@ -16,7 +18,7 @@ type Item struct {
 	EndDate     *time.Time `db:"end_date" goqu:"omitnil"`
 }
 
-type PatchItem struct {
+type SubscriptionPatch struct {
 	ID          uuid.UUID  `db:"id" goqu:"skipupdate"`
 	ServiceName *string    `db:"service_name" goqu:"omitnil"`
 	Price       *uint      `db:"price" goqu:"omitnil"`
@@ -25,19 +27,11 @@ type PatchItem struct {
 	EndDate     *time.Time `db:"end_date" goqu:"omitnil"`
 }
 
-type ListParams struct {
+type SubscriptionListParams struct {
 	ServiceName *string
 	StartDate   *time.Time
 	EndDate     *time.Time
 	UserId      *uuid.UUID
 	Offset      *int
 	Limit       *int
-}
-
-type ItemRepo interface {
-	GetList(context.Context, ListParams) ([]*Item, error)
-	GetByID(context.Context, uuid.UUID) (*Item, error)
-	Add(context.Context, *Item) (uuid.UUID, error)
-	Update(context.Context, *PatchItem) (int64, error)
-	Delete(context.Context, uuid.UUID) (int64, error)
 }

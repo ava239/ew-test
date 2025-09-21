@@ -1,9 +1,10 @@
-package api
+package transport
 
 import (
 	"bytes"
 	"encoding/json"
-	"ew/pkg/subscriptions"
+	"ew/internal/models/subscriptions"
+	"ew/internal/storage/inmemory"
 	"io"
 	"net/http/httptest"
 	"slices"
@@ -19,11 +20,11 @@ var (
 	id1  = uuid.New()
 	id2  = uuid.New()
 	id3  = uuid.New()
-	repo *subscriptions.SubscriptionRepositoryMock
+	repo *inmemory.InMemorySubscriptionRepository
 )
 
 func prepareServ() *fiber.App {
-	repo = subscriptions.NewMockRepo([]*subscriptions.Item{
+	repo = inmemory.NewRepo([]*subscriptions.Subscription{
 		{ID: id1, ServiceName: "some item", Price: 125, StartDate: time.Now().AddDate(-1, -5, 0), UserId: uuid.New()},
 		{ID: id2, ServiceName: "item 2", Price: 250, StartDate: time.Now().AddDate(0, -2, 0), UserId: uuid.New()},
 		{ID: id3, ServiceName: "nothing", Price: 500, StartDate: time.Now().AddDate(0, -1, 0), UserId: uuid.New()},
@@ -116,7 +117,7 @@ func TestImplDelete(t *testing.T) {
 		t.Errorf("invalid status code: %d, expected %d", resp.StatusCode, 404)
 	}
 
-	i := slices.IndexFunc(repo.Items, func(item *subscriptions.Item) bool {
+	i := slices.IndexFunc(repo.Items, func(item *subscriptions.Subscription) bool {
 		return item.ID == id1
 	})
 
@@ -147,7 +148,7 @@ func TestImplUpdate(t *testing.T) {
 		t.Errorf("invalid status code: %d, expected %d", resp.StatusCode, 204)
 	}
 
-	i := slices.IndexFunc(repo.Items, func(item *subscriptions.Item) bool {
+	i := slices.IndexFunc(repo.Items, func(item *subscriptions.Subscription) bool {
 		return item.ID == id1
 	})
 
@@ -192,7 +193,7 @@ func TestImplCreate(t *testing.T) {
 		t.Errorf("invalid response body: %s", err.Error())
 	}
 
-	i := slices.IndexFunc(repo.Items, func(item *subscriptions.Item) bool {
+	i := slices.IndexFunc(repo.Items, func(item *subscriptions.Subscription) bool {
 		return item.ID.String() == respJson.SubscriptionId
 	})
 
