@@ -12,4 +12,5 @@ type SubscriptionRepo interface {
 	Add(context.Context, *Subscription) (uuid.UUID, error)
 	Update(context.Context, *SubscriptionPatch) (int64, error)
 	Delete(context.Context, uuid.UUID) (int64, error)
+	GetStats(context.Context, SubscriptionListParams) (int, error)
 }

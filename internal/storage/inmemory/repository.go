@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"ew/internal/models/subscriptions"
+	"math"
 	"slices"
 	"time"
 
@@ -11,6 +12,53 @@ import (
 
 type SubscriptionRepository struct {
 	Items []*subscriptions.Subscription
+}
+
+func (repo *SubscriptionRepository) GetStats(ctx context.Context, params subscriptions.SubscriptionListParams) (int, error) {
+	items, err := repo.GetList(ctx, subscriptions.SubscriptionListParams{UserId: params.UserId, ServiceName: params.ServiceName})
+	if err != nil {
+		return 0, err
+	}
+
+	total := 0
+
+	for _, item := range items {
+		var (
+			startYear, endYear   int
+			startMonth, endMonth time.Month
+			start, end           time.Time
+		)
+
+		if params.StartDate != nil {
+			minUnix := math.Max(float64(params.StartDate.Unix()), float64(item.StartDate.Unix()))
+			start = time.Unix(int64(minUnix), 0)
+		} else {
+			start = item.StartDate
+		}
+
+		if item.EndDate != nil {
+			end = *item.EndDate
+		} else {
+			end = time.Now()
+		}
+
+		if params.EndDate != nil {
+			minUnix := math.Min(float64(params.EndDate.Unix()), float64(end.Unix()))
+			end = time.Unix(int64(minUnix), 0)
+		}
+
+		if start.After(end) {
+			start = end.AddDate(0, 1, 0)
+		}
+
+		startYear, startMonth, _ = start.Date()
+		endYear, endMonth, _ = end.Date()
+
+		diff := int(endMonth-startMonth+1) + 12*(endYear-startYear)
+
+		total += int(item.Price) * diff
+	}
+	return total, nil
 }
 
 func NewRepo(items []*subscriptions.Subscription) *SubscriptionRepository {

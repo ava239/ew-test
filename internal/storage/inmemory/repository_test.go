@@ -116,6 +116,28 @@ func TestInMemorySubscriptionRepository_GetList(t *testing.T) {
 	}
 }
 
+func TestInMemorySubscriptionRepository_Stats(t *testing.T) {
+	repo := prepareRepo()
+
+	total, err := repo.GetStats(context.TODO(), subscriptions.SubscriptionListParams{UserId: &repo.Items[0].UserId})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if total != 18*125 {
+		t.Errorf("not equal %v", total)
+	}
+
+	total, err = repo.GetStats(context.TODO(), subscriptions.SubscriptionListParams{ServiceName: &repo.Items[3].ServiceName})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if total != 4*1500 {
+		t.Errorf("not equal %v", total)
+	}
+}
+
 func TestInMemorySubscriptionRepository_Update(t *testing.T) {
 	repo := prepareRepo()
 

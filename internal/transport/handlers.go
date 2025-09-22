@@ -3,8 +3,7 @@ package transport
 import (
 	"context"
 	"errors"
-	subscriptions2 "ew/internal/models/subscriptions"
-	"math"
+	"ew/internal/models/subscriptions"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -14,7 +13,7 @@ import (
 var InternalError = errors.New("internal server error")
 
 type Server struct {
-	Repo      subscriptions2.SubscriptionRepo
+	Repo      subscriptions.SubscriptionRepo
 	Validator *validator.Validate
 }
 
@@ -29,7 +28,7 @@ func validateDateFormat(fl validator.FieldLevel) bool {
 	return true
 }
 
-func NewServer(repo subscriptions2.SubscriptionRepo, validate *validator.Validate) Server {
+func NewServer(repo subscriptions.SubscriptionRepo, validate *validator.Validate) Server {
 	err := validate.RegisterValidation("dateFormat", validateDateFormat)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to register validator")
@@ -76,7 +75,7 @@ func (s Server) UpdateSubscription(ctx context.Context, request UpdateSubscripti
 		return UpdateSubscription422JSONResponse{Code: 422, Message: err.Error()}, nil
 	}
 
-	item := &subscriptions2.SubscriptionPatch{
+	item := &subscriptions.SubscriptionPatch{
 		ID:          request.SubscriptionId,
 		ServiceName: request.Body.ServiceName,
 		UserId:      request.Body.UserId,
@@ -118,7 +117,7 @@ func (s Server) UpdateSubscription(ctx context.Context, request UpdateSubscripti
 	return UpdateSubscription204Response{}, nil
 }
 
-func convertRepoToResponse(item *subscriptions2.Subscription) Subscription {
+func convertRepoToResponse(item *subscriptions.Subscription) Subscription {
 	var end *string
 
 	if item.EndDate != nil {
@@ -143,7 +142,7 @@ func (s Server) ListSubscriptions(ctx context.Context, request ListSubscriptions
 		return ListSubscriptionsdefaultJSONResponse{Body: Error{Code: 422, Message: err.Error()}, StatusCode: 422}, nil
 	}
 
-	params := subscriptions2.SubscriptionListParams{
+	params := subscriptions.SubscriptionListParams{
 		Offset:      request.Params.Offset,
 		Limit:       request.Params.Limit,
 		UserId:      request.Params.UserId,
@@ -188,7 +187,7 @@ func (s Server) ListSubscriptions(ctx context.Context, request ListSubscriptions
 
 func (s Server) ReadSubscription(ctx context.Context, request ReadSubscriptionRequestObject) (ReadSubscriptionResponseObject, error) {
 	item, err := s.Repo.GetByID(ctx, request.SubscriptionId)
-	if errors.Is(err, subscriptions2.NotFound) {
+	if errors.Is(err, subscriptions.NotFound) {
 		return ReadSubscription404Response{}, nil
 	}
 	if err != nil {
@@ -207,7 +206,7 @@ func (s Server) CreateSubscription(ctx context.Context, request CreateSubscripti
 		return CreateSubscription422JSONResponse{Code: 422, Message: err.Error()}, nil
 	}
 
-	item := &subscriptions2.Subscription{
+	item := &subscriptions.Subscription{
 		ServiceName: request.Body.ServiceName,
 		UserId:      request.Body.UserId,
 		Price:       uint(request.Body.Price),
@@ -261,14 +260,6 @@ func (s Server) StatsSubscriptions(ctx context.Context, request StatsSubscriptio
 		return StatsSubscriptionsdefaultJSONResponse{Body: Error{Code: 422, Message: err.Error()}, StatusCode: 422}, nil
 	}
 
-	items, err := s.Repo.GetList(ctx, subscriptions2.SubscriptionListParams{UserId: request.Params.UserId, ServiceName: request.Params.ServiceName})
-	if err != nil {
-		logrus.WithError(err).Error("StatsSubscriptions failed")
-		return nil, InternalError
-	}
-
-	total := 0
-
 	var periodStart, periodEnd *time.Time
 
 	if request.Params.StartDate != nil {
@@ -281,43 +272,15 @@ func (s Server) StatsSubscriptions(ctx context.Context, request StatsSubscriptio
 	}
 	logrus.WithFields(logrus.Fields{"end": periodEnd, "start": periodStart}).Debug("stats subscriptions")
 
-	for _, item := range items {
-		var (
-			startYear, endYear   int
-			startMonth, endMonth time.Month
-			start, end           time.Time
-		)
-
-		if periodStart != nil {
-			minUnix := math.Max(float64(periodStart.Unix()), float64(item.StartDate.Unix()))
-			start = time.Unix(int64(minUnix), 0)
-		} else {
-			start = item.StartDate
-		}
-
-		if item.EndDate != nil {
-			end = *item.EndDate
-		} else {
-			end = time.Now()
-		}
-
-		if periodEnd != nil {
-			minUnix := math.Min(float64(periodEnd.Unix()), float64(end.Unix()))
-			end = time.Unix(int64(minUnix), 0)
-		}
-
-		if start.After(end) {
-			start = end.AddDate(0, 1, 0)
-		}
-
-		startYear, startMonth, _ = start.Date()
-		endYear, endMonth, _ = end.Date()
-
-		diff := int(endMonth-startMonth+1) + 12*(endYear-startYear)
-
-		logrus.WithFields(logrus.Fields{"diff": diff, "year1": startYear, "year2": endYear, "month1": startMonth, "month2": endMonth}).Debug("stats subscriptions")
-
-		total += int(item.Price) * diff
+	total, err := s.Repo.GetStats(ctx, subscriptions.SubscriptionListParams{
+		UserId:      request.Params.UserId,
+		ServiceName: request.Params.ServiceName,
+		StartDate:   periodStart,
+		EndDate:     periodEnd,
+	})
+	if err != nil {
+		logrus.WithError(err).Error("StatsSubscriptions failed")
+		return nil, InternalError
 	}
 
 	logrus.Info("received stats")

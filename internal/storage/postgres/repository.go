@@ -22,11 +22,61 @@ func NewRepo(db *pgxpool.Pool, qb goqu.DialectWrapper) *SubscriptionRepository {
 	return &SubscriptionRepository{DB: db, QB: qb}
 }
 
-func (repo *SubscriptionRepository) GetList(ctx context.Context, params subscriptions.SubscriptionListParams) ([]*subscriptions.Subscription, error) {
-	items := []*subscriptions.Subscription{}
-
+func (repo *SubscriptionRepository) GetStats(ctx context.Context, params subscriptions.SubscriptionListParams) (int, error) {
 	if params.StartDate != nil && params.StartDate.After(time.Now()) {
-		return items, nil
+		return 0, nil
+	}
+
+	query := repo.QB.From("subscriptions").
+		Select(goqu.SUM(goqu.L(
+			"price * (extract(year from age(CASE WHEN end_date IS NULL THEN now() ELSE end_date END, start_date - INTERVAL '1 month')) * 12 + extract(month from age(CASE WHEN end_date IS NULL THEN now() ELSE end_date END, start_date - INTERVAL '1 month')))",
+		)).As("total"))
+
+	if params.ServiceName != nil {
+		query = query.Where(goqu.Ex{"service_name": params.ServiceName})
+	}
+
+	if params.UserId != nil {
+		query = query.Where(goqu.Ex{"user_id": params.UserId})
+	}
+
+	if params.EndDate == nil {
+		now := time.Now()
+		y, m, _ := now.Date()
+		end := time.Date(y, m, 1, 0, 0, 0, 0, now.Location())
+		params.EndDate = &end
+	}
+
+	if params.StartDate != nil {
+		query = query.Where(goqu.And(
+			goqu.C("start_date").Lt(params.EndDate),
+			goqu.Or(
+				goqu.C("end_date").IsNull(),
+				goqu.C("end_date").Gte(params.StartDate),
+			),
+		))
+	} else {
+		query = query.Where(goqu.C("start_date").Lt(params.EndDate))
+	}
+
+	q, args, _ := query.Prepared(true).ToSQL()
+	logrus.WithFields(logrus.Fields{"query": q, "args": args}).Debug("GetStat query")
+
+	var total int
+	err := repo.DB.
+		QueryRow(ctx, q, args...).
+		Scan(&total)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return total, nil
+}
+
+func (repo *SubscriptionRepository) GetList(ctx context.Context, params subscriptions.SubscriptionListParams) ([]*subscriptions.Subscription, error) {
+	if params.StartDate != nil && params.StartDate.After(time.Now()) {
+		return []*subscriptions.Subscription{}, nil
 	}
 
 	query := repo.QB.From("subscriptions").
@@ -74,6 +124,8 @@ func (repo *SubscriptionRepository) GetList(ctx context.Context, params subscrip
 		return nil, err
 	}
 	defer rows.Close()
+
+	items := make([]*subscriptions.Subscription, 0)
 	for rows.Next() {
 		subscription := &subscriptions.Subscription{}
 		err = rows.Scan(
